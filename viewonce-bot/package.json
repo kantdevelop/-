@@ -1,0 +1,15 @@
+{
+  "name": "viewonce-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "github:abdulwahabbukhari/wahab-baileys#main",
+    "pino": "^9.0.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
