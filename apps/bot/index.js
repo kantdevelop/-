@@ -49,9 +49,19 @@ async function startBot(userId) {
   const stateEntry = { sock, linked: false, sessionId: entry?.sessionId, reconnectTimer: undefined, pairingCode: undefined };
   sessions.set(userId, stateEntry);
 
-  // The code the user types into WhatsApp has to come from Baileys, not be invented.
+  // The code the user types into WhatsApp has to come from Baileys, and the
+  // socket only accepts requestPairingCode once the handshake has produced a QR.
   if (!state.creds.registered) {
-    const code = await sock.requestPairingCode(user.phoneNumber.split('@')[0]);
+    const phone = user.phoneNumber.split('@')[0];
+    const code = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out waiting for QR')), 20000);
+      sock.ev.on('connection.update', function onUpdate({ qr }) {
+        if (!qr) return;
+        clearTimeout(timer);
+        sock.ev.off('connection.update', onUpdate);
+        sock.requestPairingCode(phone).then(resolve, reject);
+      });
+    });
     stateEntry.pairingCode = code;
     if (stateEntry.sessionId) {
       await prisma.session
