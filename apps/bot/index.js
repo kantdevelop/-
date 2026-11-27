@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const pino = require('pino');
 const {
   default: makeWASocket,
@@ -20,12 +19,8 @@ app.use(express.json());
 const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const authDir = path.join(dataDir, 'auth');
 
-// Map<userId, { sock, linked, sessionId }>
+// Map<userId, { sock, linked, sessionId, pairingCode }>
 const sessions = new Map();
-
-function newPairingCode() {
-  return String(crypto.randomInt(10000000, 99999999));
-}
 
 async function getOrCreateUser(phoneNumber) {
   const jid = phoneNumber + '@s.whatsapp.net';
@@ -41,17 +36,29 @@ async function startBot(userId) {
     try { entry.sock.end?.(); } catch {}
   }
 
-  if (!(await prisma.user.findUnique({ where: { id: userId } }))) throw new Error('user not found');
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('user not found');
   const { state, saveCreds } = await useMultiFileAuthState(path.join(authDir, userId));
 
   const sock = makeWASocket({
     auth: state,
-    browser: Browsers.android('Chrome'),
+    browser: Browsers.ubuntu('Chrome'),
     logger: pino({ level: 'silent' })
   });
 
-  const stateEntry = { sock, linked: false, sessionId: entry?.sessionId, reconnectTimer: undefined };
+  const stateEntry = { sock, linked: false, sessionId: entry?.sessionId, reconnectTimer: undefined, pairingCode: undefined };
   sessions.set(userId, stateEntry);
+
+  // The code the user types into WhatsApp has to come from Baileys, not be invented.
+  if (!state.creds.registered) {
+    const code = await sock.requestPairingCode(user.phoneNumber.split('@')[0]);
+    stateEntry.pairingCode = code;
+    if (stateEntry.sessionId) {
+      await prisma.session
+        .update({ where: { id: stateEntry.sessionId }, data: { pairingCode: code } })
+        .catch((err) => logger.warn(err, 'failed to store pairing code'));
+    }
+  }
 
   sock.ev.on('creds.update', () => saveCreds().catch((err) => logger.warn(err, 'saveCreds failed')));
 
@@ -130,15 +137,14 @@ app.post('/api/link', async (req, res) => {
       data: {
         userId: user.id,
         sessionPath: path.join(authDir, user.id),
-        status: 'pending',
-        pairingCode: newPairingCode()
+        status: 'pending'
       }
     });
 
     sessions.set(user.id, { ...sessions.get(user.id), sessionId: session.id, linked: false });
-    void startBot(user.id);
+    await startBot(user.id);
 
-    res.json({ userId: user.id, pairingCode: session.pairingCode });
+    res.json({ userId: user.id, pairingCode: sessions.get(user.id)?.pairingCode ?? null });
   } catch (err) {
     logger.error(err, 'link failed');
     res.status(500).json({ error: 'link failed' });
