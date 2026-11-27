@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const pino = require('pino');
@@ -13,6 +14,7 @@ const { prisma } = require('@viewonce/db');
 
 const logger = pino({ level: 'info' });
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
@@ -39,7 +41,7 @@ async function startBot(userId) {
     try { entry.sock.end?.(); } catch {}
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, rejectOnNotFound: true });
+  if (!(await prisma.user.findUnique({ where: { id: userId } }))) throw new Error('user not found');
   const { state, saveCreds } = await useMultiFileAuthState(path.join(authDir, userId));
 
   const sock = makeWASocket({

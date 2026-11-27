@@ -8,6 +8,7 @@
   "dependencies": {
     "@outlaw1/baileys": "^0.0.4",
     "@viewonce/db": "workspace:*",
+    "cors": "^2.8.5",
     "express": "^4.21.0",
     "pino": "^9.0.0"
   }
