@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>View Once Bot</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.1rem; margin-top: 1.5rem; }
+    ul { line-height: 1.6; }
+    code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 4px; }
+    footer { margin-top: 2rem; color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>View Once Bot</h1>
+  <p>A small bot that downloads View Once media sent to it and saves the copies in its own chat. No reply is sent to the sender.</p>
+  <h2>How it works</h2>
+  <ul>
+    <li>Link a phone account to the bot (see below).</li>
+    <li>Anyone sends a View Once photo/video/audio to the bot's account.</li>
+    <li>The bot downloads it and sends it back into the bot account's own chat.</li>
+    <li>You watch it there; it is saved as regular media.</li>
+  </ul>
+  <h2>Deploy it</h2>
+  <ol>
+    <li>Run the bot locally: <code>cd viewonce-bot && npm install && npm start</code> and scan the QR with WhatsApp.</li>
+    <li>Scan the printed QR code with WhatsApp → Settings → Linked devices → Link a device.</li>
+    <li>Push this repo to GitHub; deploy it on Vercel for the frontend page above.</li>
+  </ol>
+  <footer>Keep the process running to receive View Once media; the QR code appears in the terminal each time it pairs or reconnects.</footer>
+</body>
+</html>

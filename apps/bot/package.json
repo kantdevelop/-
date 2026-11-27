@@ -1,0 +1,14 @@
+{
+  "name": "@viewonce/bot",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@outlaw1/baileys": "^0.0.4",
+    "@viewonce/db": "workspace:*",
+    "express": "^4.21.0",
+    "pino": "^9.0.0"
+  }
+}

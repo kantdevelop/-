@@ -1,0 +1,27 @@
+// Shared SQLite datasource. DATABASE_URL is injected by the runtime; the
+// default points at the volume-mounted dev.db under ./data.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String    @id @default(uuid())
+  phoneNumber String    @unique
+  createdAt   DateTime  @default(now())
+  sessions    Session[]
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sessionPath String
+  status      String   @default("pending")
+  pairingCode String?
+  updatedAt   DateTime @updatedAt
+}

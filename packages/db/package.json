@@ -1,0 +1,13 @@
+{
+  "name": "@viewonce/db",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "generate": "prisma generate",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "prisma": "^6.0.0"
+  }
+}

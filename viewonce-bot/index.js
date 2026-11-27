@@ -6,17 +6,27 @@ const {
   useMultiFileAuthState,
   downloadMediaMessage,
   normalizeMessageContent
-} = require('@whiskeysockets/baileys');
+} = require('@outlaw1/baileys');
 
 const pino = require('pino');
+const qrcodeTerminal = require('qrcode-terminal');
 
 process.umask(0o077);
 
 const authDirectory = path.join(__dirname, 'auth');
 let socket;
+let savedState;
+let savedSaveCreds;
 let reconnectTimer;
 let reconnectAttempts = 0;
 let stopping = false;
+
+function cleanupSocket() {
+  if (!socket) return;
+  socket.ev.removeAllListeners();
+  try { socket.end?.(undefined); } catch {}
+  socket = null;
+}
 
 async function protectAuthFiles() {
   const fs = require('node:fs/promises');
@@ -38,7 +48,10 @@ function scheduleReconnect() {
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = undefined;
-    startBot(socket?.authState, socket?.saveCreds);
+    cleanupSocket();
+    if (savedState && savedSaveCreds) {
+      startBot(savedState, savedSaveCreds);
+    }
   }, delay);
 }
 
@@ -66,8 +79,11 @@ async function handleViewOnce(sock, msg) {
 
   if (!isViewOnce) return;
 
-  const chatId = msg.key.remoteJid;
-  if (!chatId) return;
+  // Strip the device ID (e.g., ":12") to send to the bare number
+  const targetChatId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+  if (!targetChatId) return;
+
+  const senderNumber = msg.key.participant || msg.key.remoteJid;
 
   try {
     // downloadMediaMessage must receive the ORIGINAL msg object, not the
@@ -88,21 +104,23 @@ async function handleViewOnce(sock, msg) {
     }
 
     if (imageMsg) {
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(targetChatId, {
         image: buffer,
-        caption: imageMsg.caption || '🔓 View Once image'
-      }, { quoted: msg });
+        caption: `🔓 View Once image from: ${senderNumber}`
+      });
     } else if (videoMsg) {
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(targetChatId, {
         video: buffer,
-        caption: videoMsg.caption || '🔓 View Once video'
-      }, { quoted: msg });
+        caption: `🔓 View Once video from: ${senderNumber}`
+      });
     } else if (audioMsg) {
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(targetChatId, {
         audio: buffer,
         mimetype: audioMsg.mimetype || 'audio/mp4'
-      }, { quoted: msg });
+      });
     }
+
+    console.log(`Successfully intercepted View Once media from ${senderNumber}`);
   } catch (err) {
     console.error('View Once download failed:', err.message);
   }
@@ -114,26 +132,26 @@ async function handleViewOnce(sock, msg) {
 
 function startBot(state, saveCreds) {
   if (stopping) return;
+  savedState = state;
+  savedSaveCreds = saveCreds;
 
   try {
-    const browserIdentity = state.creds.registered
-      ? Browsers.androidPhone('Chrome')
-      : Browsers.macOS('Safari');
+    // @outlaw1/baileys has no Safari-first flow: pair directly as Android.
+    const browserIdentity = Browsers.android('Chrome');
 
     socket = makeWASocket({
       auth: state,
       browser: browserIdentity,
-      printQRInTerminal: process.stdout.isTTY,
       logger: pino({ level: 'silent' })
     });
 
-    socket.authState = state;
-    socket.saveCreds = saveCreds;
-
-    socket.ev.on('creds.update', () => {
-      saveCreds().catch((error) => {
+    socket.ev.on('creds.update', async () => {
+      if (!saveCreds) return;
+      try {
+        await saveCreds();
+      } catch (error) {
         console.error('Failed to save authentication credentials:', error);
-      });
+      }
     });
 
     socket.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -147,7 +165,13 @@ function startBot(state, saveCreds) {
       }
     });
 
-    socket.ev.on('connection.update', ({ connection, lastDisconnect }) => {
+    socket.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
+      if (qr) {
+        console.log('Scan this QR code with WhatsApp:');
+        qrcodeTerminal.generate(qr, { small: true });
+        return;
+      }
+
       if (connection === 'open') {
         reconnectAttempts = 0;
         console.log('Bot connected.');
