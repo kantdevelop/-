@@ -6,7 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@outlaw1/baileys": "^0.0.4",
+    "baileys": "^7.0.0-rc14",
     "@viewonce/db": "workspace:*",
     "cors": "^2.8.5",
     "express": "^4.21.0",

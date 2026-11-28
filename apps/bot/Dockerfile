@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache openssl && corepack enable
 # Manifests first so the install layer caches; pnpm needs every workspace package.json.
@@ -10,7 +10,7 @@ RUN pnpm install --no-frozen-lockfile
 COPY . .
 RUN pnpm --filter @viewonce/db generate
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache openssl

@@ -8,7 +8,7 @@ const {
   useMultiFileAuthState,
   downloadMediaMessage,
   normalizeMessageContent
-} = require('@outlaw1/baileys');
+} = require('baileys');
 const { prisma } = require('@viewonce/db');
 
 const logger = pino({ level: 'info' });
